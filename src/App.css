@@ -1,0 +1,35 @@
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: left;
+}
+
+.app__header h1 {
+  margin: 0 0 12px;
+}
+
+.app__tagline {
+  font-size: 19px;
+  line-height: 150%;
+}
+
+.app__flow {
+  margin: 32px 0;
+  padding-left: 24px;
+  display: grid;
+  gap: 10px;
+}
+
+.app__flow li {
+  color: var(--text-h);
+}
+
+.app__status {
+  margin-top: 32px;
+  padding: 14px 18px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  border-radius: 8px;
+  font-size: 15px;
+}
