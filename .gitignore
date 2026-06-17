@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Deploy artifacts & secrets
+.vercel
+.env
+.env.*
+
+# Local planning / scratch — kept on disk, not published
+tasks/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
