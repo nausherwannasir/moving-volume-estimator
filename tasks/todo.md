@@ -27,22 +27,23 @@ Goal: a working v1, live and shareable, that works on mobile. Full detail in
 
 ## Phase 2 — Styling & usability (~30m)
 
-- [ ] **Task 4 — Item entry + add/remove list** (M · `App.jsx`, `App.css`) · _dep: 1, 2_
-  - [ ] Add item: name, size, quantity, fragile/heavy toggle
-  - [ ] Remove any item; list updates immediately
-  - [ ] In-memory session state; graceful empty/invalid input
-- [ ] **Task 5 — Live summary: boxes by type + vehicle** (M · `App.jsx`, `App.css`) · _dep: 3, 4_
-  - [ ] Per-box-type breakdown + totals
-  - [ ] Recommended vehicle (+ multi-trip note)
-  - [ ] Updates live on add/remove; empty list = clean zero state
-- [ ] **Task 6 — Mobile-responsive styling pass** (M · `App.css`, `index.css`) · _dep: 4, 5_
-  - [ ] 375px: no horizontal scroll, tap-sized controls, single column
-  - [ ] Form/list/summary visually distinct; reuse theme + dark mode
-  - [ ] No leftover template style noise
+- [x] **Task 4 — Item entry + add/remove list** (M · `App.jsx`, `App.css`) · _dep: 1, 2_
+  - [x] Add item: name, size, quantity, fragile/heavy toggle
+  - [x] Remove any item; list updates immediately
+  - [x] In-memory session state; graceful empty/invalid input (qty floored to ≥1, name defaults)
+- [x] **Task 5 — Live summary: boxes by type + vehicle** (M · `App.jsx`, `App.css`) · _dep: 3, 4_
+  - [x] Per-box-type breakdown + totals
+  - [x] Recommended vehicle (+ multi-trip note)
+  - [x] Updates live via useMemo on add/remove; empty list = clean zero state
+- [x] **Task 6 — Mobile-responsive styling pass** (M · `App.css`, `index.css`) · _dep: 4, 5_
+  - [x] Mobile-first CSS: single column, 16px inputs (no iOS zoom), 36–46px tap targets, no fixed-width overflow
+  - [x] Form/list/summary visually distinct cards; reuse theme + dark mode
+  - [x] Removed leftover template style noise (`#social`, `.counter`)
 
 ### ✅ Checkpoint — Working app
-- [ ] Add/remove → live box + vehicle summary, end to end
-- [ ] Looks intentional at 375px · `npm run build` clean · `npm test` green
+- [x] Add/remove → live box + vehicle summary, end to end (logic + wiring verified)
+- [x] `npm run build` clean · `npm test` green (27) · `npm run lint` clean · dev server serves with no compile errors
+- [ ] Visual confirmation on a real phone (no browser tool here — eyeball via `npm run dev`, also gets a live mobile check in Phase 3)
 - [ ] Review with human before deploy
 
 ## Phase 3 — Deploy (~25m)

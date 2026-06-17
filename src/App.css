@@ -1,35 +1,280 @@
+/* Mobile-first layout. Single column, tap-friendly controls; one breakpoint at
+   640px just nudges the header up a size. Colors come from index.css variables
+   (light + dark mode both supported). */
+
 .app {
-  max-width: 720px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 48px 24px;
+  padding: 32px 20px 64px;
   text-align: left;
 }
 
 .app__header h1 {
-  margin: 0 0 12px;
+  font-size: 32px;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
 }
 
 .app__tagline {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 150%;
+  margin: 0;
 }
 
-.app__flow {
-  margin: 32px 0;
-  padding-left: 24px;
+@media (min-width: 640px) {
+  .app__header h1 {
+    font-size: 40px;
+  }
+}
+
+/* --- Shared card --- */
+.entry,
+.items,
+.summary {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+/* --- Entry form --- */
+.entry__row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field > span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.field--qty {
+  flex: 0 0 84px;
+}
+
+.field input[type='text'],
+.field input[type='number'],
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  /* >=16px keeps iOS Safari from zooming in on focus */
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid var(--accent-border);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.checkbox > span {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-h);
+}
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  min-height: 46px;
+}
+
+.btn--add {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.btn--add:hover {
+  filter: brightness(1.05);
+}
+
+.btn--add:active {
+  transform: translateY(1px);
+}
+
+/* --- Item list --- */
+.items__empty,
+.summary__empty {
+  margin: 0;
+  font-size: 15px;
+}
+
+.items__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 10px;
 }
 
-.app__flow li {
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--social-bg);
+}
+
+.item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.item__name {
+  color: var(--text-h);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--code-bg);
   color: var(--text-h);
 }
 
-.app__status {
-  margin-top: 32px;
-  padding: 14px 18px;
-  border: 1px solid var(--accent-border);
+.tag--fragile {
   background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+.item__remove {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 15px;
+}
+
+.item__remove:hover {
+  color: var(--text-h);
+  border-color: var(--text);
+}
+
+/* --- Summary --- */
+.summary {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.summary h2 {
+  margin: 0 0 14px;
+}
+
+.summary__boxes {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.summary__box {
+  display: grid;
+  grid-template-columns: 2.5em 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.summary__box-count {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.summary__box-label {
+  color: var(--text-h);
+}
+
+.summary__box-vol {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.summary__totals {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--accent-border);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.summary__vehicle {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary__vehicle-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.summary__vehicle strong {
+  font-size: 20px;
+  color: var(--text-h);
+}
+
+.summary__trips {
+  font-size: 13px;
+  color: var(--accent);
+  margin-top: 4px;
 }
