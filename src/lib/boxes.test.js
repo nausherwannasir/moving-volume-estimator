@@ -34,7 +34,7 @@ describe('estimateBoxes', () => {
     const result = estimateBoxes([])
     expect(result.totalBoxes).toBe(0)
     expect(result.totalCubicFeet).toBe(0)
-    expect(result.counts).toEqual({ small: 0, medium: 0, large: 0 })
+    expect(result.counts).toEqual({ small: 0, medium: 0, large: 0, file: 0 })
   })
 
   it('treats non-array input as empty', () => {
@@ -44,7 +44,7 @@ describe('estimateBoxes', () => {
 
   it('estimates the sample list into 1 small + 1 medium + 1 large box', () => {
     const result = estimateBoxes(SAMPLE_ITEMS)
-    expect(result.counts).toEqual({ small: 1, medium: 1, large: 1 })
+    expect(result.counts).toEqual({ small: 1, medium: 1, large: 1, file: 0 })
     expect(result.totalBoxes).toBe(3)
     // 1×1.5 + 1×3.0 + 1×4.5
     expect(result.totalCubicFeet).toBe(9)
@@ -85,6 +85,65 @@ describe('estimateBoxes', () => {
       boxVolumeCubicFeet: 1.5,
       subtotalCubicFeet: 1.5,
     })
+  })
+})
+
+describe('estimateBoxes — item quantity', () => {
+  it('treats one item with quantity 8 as eight items', () => {
+    // "8 books": 8 small items ÷ 5 per small box → 2 small boxes.
+    const result = estimateBoxes([{ name: 'Books', size: 'small', quantity: 8 }])
+    expect(result.counts.small).toBe(2)
+    expect(result.breakdown.find((r) => r.size === 'small').itemCount).toBe(8)
+  })
+
+  it('defaults a missing or invalid quantity to 1', () => {
+    expect(estimateBoxes([{ size: 'small' }]).counts.small).toBe(1)
+    expect(estimateBoxes([{ size: 'small', quantity: 'lots' }]).counts.small).toBe(1)
+  })
+
+  it('contributes nothing for a zero or negative quantity', () => {
+    expect(estimateBoxes([{ size: 'small', quantity: 0 }]).totalBoxes).toBe(0)
+    expect(estimateBoxes([{ size: 'large', quantity: -3 }]).totalBoxes).toBe(0)
+  })
+
+  it('sums quantities across multiple items of the same size', () => {
+    const result = estimateBoxes([
+      { size: 'small', quantity: 5 },
+      { size: 'small', quantity: 5 },
+    ])
+    expect(result.counts.small).toBe(2) // 10 ÷ 5 per box
+  })
+})
+
+describe('estimateBoxes — fragile/heavy sturdy-box rule', () => {
+  it('routes a fragile/heavy item to the file box, not its raw-size box', () => {
+    const result = estimateBoxes([{ name: 'Dishes', size: 'large', fragile: true }])
+    expect(result.counts.large).toBe(0)
+    expect(result.counts.file).toBe(1)
+    expect(result.breakdown.find((r) => r.size === 'fragile')).toMatchObject({
+      label: 'Book / file box',
+      boxId: 'file',
+      itemCount: 1,
+      count: 1,
+    })
+  })
+
+  it('never increases the large-box count for a heavy item', () => {
+    const heavy = estimateBoxes([{ size: 'large', quantity: 4, fragile: true }])
+    expect(heavy.counts.large).toBe(0)
+    expect(heavy.counts.file).toBe(1) // 4 ÷ 4 per sturdy box
+  })
+
+  it('composes with quantity (10 fragile items → 3 file boxes)', () => {
+    const result = estimateBoxes([{ size: 'medium', quantity: 10, fragile: true }])
+    expect(result.counts.medium).toBe(0)
+    expect(result.counts.file).toBe(3) // ceil(10 / 4)
+  })
+
+  it('leaves ordinary items in their size box (file stays 0)', () => {
+    const result = estimateBoxes([{ size: 'large', quantity: 2 }])
+    expect(result.counts.large).toBe(1)
+    expect(result.counts.file).toBe(0)
   })
 })
 
