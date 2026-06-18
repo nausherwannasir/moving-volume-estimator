@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ITEM_SIZES, estimateBoxes } from './lib/boxes.js'
 import { recommendVehicle } from './lib/vehicles.js'
@@ -24,7 +24,6 @@ function App() {
   const [detecting, setDetecting] = useState(false)
   const [detectError, setDetectError] = useState('')
   const [detectNotice, setDetectNotice] = useState('')
-  const previewRef = useRef(null)
 
   // Derived estimate — recomputed from the list on every add/remove.
   const estimate = useMemo(() => estimateBoxes(items), [items])
@@ -52,30 +51,36 @@ function App() {
   }
 
   async function runDetection() {
-    if (!previewRef.current) return
+    if (!photo) return
     setDetecting(true)
     setDetectError('')
     setDetectNotice('')
     try {
-      const found = await detectItems(previewRef.current)
+      const found = await detectItems(photo.file)
       const detected = detectionsToItems(found).map((item) => ({
         id: nextId++,
         ...item,
       }))
       if (detected.length === 0) {
         setDetectError(
-          'No items recognized — try another photo, or add items manually below.',
+          'No items recognized. The in-browser detector only knows ~80 common ' +
+            'objects, so it misses clothing, instruments, and décor — add those ' +
+            'by hand below.',
         )
       } else {
         // Auto-fill the shared list: detected items are now editable/removable
         // exactly like manual ones and drive the live estimate.
         setItems((prev) => [...prev, ...detected])
         setDetectNotice(
-          `Added ${detected.length} ${detected.length === 1 ? 'item' : 'items'} to your list — review and edit sizes below.`,
+          `Added ${detected.length} ${detected.length === 1 ? 'item' : 'items'} — ` +
+            'review the sizes and add anything the scan missed below.',
         )
       }
-    } catch {
-      setDetectError('Detection failed. You can still add items manually below.')
+    } catch (err) {
+      console.error('Detection failed:', err)
+      setDetectError(
+        `Detection failed: ${err?.message || 'unknown error'}. You can still add items manually below.`,
+      )
     } finally {
       setDetecting(false)
     }
@@ -129,7 +134,6 @@ function App() {
         {photo && (
           <>
             <img
-              ref={previewRef}
               className="scan__preview"
               src={photo.url}
               alt="Selected room photo"

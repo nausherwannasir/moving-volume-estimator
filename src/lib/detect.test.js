@@ -73,6 +73,8 @@ describe('cocoClassToSize', () => {
     expect(cocoClassToSize('book')).toBe('small')
     expect(cocoClassToSize('microwave')).toBe('medium')
     expect(cocoClassToSize('couch')).toBe('large')
+    expect(cocoClassToSize('banana')).toBe('small')
+    expect(cocoClassToSize('bicycle')).toBe('large')
   })
 
   it('defaults unmapped classes to medium', () => {

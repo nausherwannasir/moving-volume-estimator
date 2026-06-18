@@ -28,15 +28,49 @@ export function normalizeSize(size) {
 // <= this before any inference.
 const MAX_DETECT_DIM = 640
 
-/** Draw an <img> onto a canvas, scaled so its longest side is <= maxDim. */
-function downscaleForDetection(imageEl, maxDim = MAX_DETECT_DIM) {
-  const w = imageEl.naturalWidth || imageEl.width || maxDim
-  const h = imageEl.naturalHeight || imageEl.height || maxDim
-  const scale = Math.min(1, maxDim / Math.max(w, h))
+/**
+ * Decode a source (File/Blob, preferred — or an <img>) into a downscaled canvas
+ * ready for both backends. Uses createImageBitmap for File/Blob: it decodes the
+ * bytes directly (no <img> element, no object-URL lifecycle to get "broken"),
+ * applies EXIF orientation, and throws a clear error — including the file type —
+ * for formats the browser can't decode (e.g. HEIC in Chrome).
+ */
+async function sourceToCanvas(source, maxDim = MAX_DETECT_DIM) {
+  let drawable
+  let width
+  let height
+
+  if (typeof HTMLImageElement !== 'undefined' && source instanceof HTMLImageElement) {
+    if (!source.complete && source.decode) {
+      try {
+        await source.decode()
+      } catch {
+        /* fall through; drawImage below will surface a real failure */
+      }
+    }
+    drawable = source
+    width = source.naturalWidth || source.width
+    height = source.naturalHeight || source.height
+  } else {
+    try {
+      drawable = await createImageBitmap(source)
+    } catch (err) {
+      const type = source?.type || 'unknown type'
+      throw new Error(
+        `couldn't decode the image (${type}). HEIC photos aren't supported in this browser — try a JPEG or PNG.`,
+        { cause: err },
+      )
+    }
+    width = drawable.width
+    height = drawable.height
+  }
+
+  const scale = Math.min(1, maxDim / Math.max(width, height))
   const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(w * scale))
-  canvas.height = Math.max(1, Math.round(h * scale))
-  canvas.getContext('2d').drawImage(imageEl, 0, 0, canvas.width, canvas.height)
+  canvas.width = Math.max(1, Math.round(width * scale))
+  canvas.height = Math.max(1, Math.round(height * scale))
+  canvas.getContext('2d').drawImage(drawable, 0, 0, canvas.width, canvas.height)
+  if (drawable.close) drawable.close() // free the ImageBitmap
   return canvas
 }
 
@@ -76,8 +110,8 @@ export function parseGeminiItems(text) {
     .map((it) => ({ name: it.name.trim(), size: normalizeSize(it.size) }))
 }
 
-async function detectWithGemini(imageEl, apiKey) {
-  const base64 = canvasToJpegBase64(downscaleForDetection(imageEl))
+async function detectWithGemini(canvas, apiKey) {
+  const base64 = canvasToJpegBase64(canvas)
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
@@ -92,6 +126,9 @@ async function detectWithGemini(imageEl, apiKey) {
             ],
           },
         ],
+        // Force a clean JSON response (no markdown fences) — parseGeminiItems
+        // still strips fences defensively in case the model ignores this.
+        generationConfig: { responseMimeType: 'application/json' },
       }),
     },
   )
@@ -135,6 +172,15 @@ export const COCO_SIZE = {
   'teddy bear': 'small',
   handbag: 'small',
   tie: 'small',
+  'sports ball': 'small',
+  frisbee: 'small',
+  'baseball glove': 'small',
+  banana: 'small',
+  apple: 'small',
+  orange: 'small',
+  donut: 'small',
+  cake: 'small',
+  sandwich: 'small',
   // medium — two-hands / appliance
   laptop: 'medium',
   tv: 'medium',
@@ -148,12 +194,19 @@ export const COCO_SIZE = {
   chair: 'medium',
   sink: 'medium',
   toilet: 'medium',
-  // large — furniture / big appliance
+  'tennis racket': 'medium',
+  'baseball bat': 'medium',
+  // large — furniture / big appliance / vehicles
   couch: 'large',
   bed: 'large',
   'dining table': 'large',
   refrigerator: 'large',
   oven: 'large',
+  bicycle: 'large',
+  motorcycle: 'large',
+  skis: 'large',
+  snowboard: 'large',
+  surfboard: 'large',
 }
 
 // Living things COCO detects but that nobody is packing into a box.
@@ -204,7 +257,7 @@ function titleCase(s) {
 
 let cocoModelPromise = null
 
-async function detectWithCoco(imageEl) {
+async function detectWithCoco(canvas) {
   // Lazy-load TF + the model so it's code-split out of the initial bundle.
   if (!cocoModelPromise) {
     cocoModelPromise = (async () => {
@@ -213,11 +266,17 @@ async function detectWithCoco(imageEl) {
       return cocoSsd.load()
     })()
   }
-  const model = await cocoModelPromise
-  // Detect on a downscaled canvas; allow more boxes for cluttered scenes and pass
-  // the lower score floor so marginal objects still surface.
-  const source = downscaleForDetection(imageEl)
-  const detections = await model.detect(source, 30, MIN_SCORE)
+  let model
+  try {
+    model = await cocoModelPromise
+  } catch (err) {
+    // Don't cache a failed load (e.g. a blocked model download) — allow a retry.
+    cocoModelPromise = null
+    throw err
+  }
+  // Allow more boxes for cluttered scenes and pass the lower score floor so
+  // marginal objects still surface.
+  const detections = await model.detect(canvas, 30, MIN_SCORE)
   return cocoDetectionsToItems(detections)
 }
 
@@ -228,27 +287,22 @@ async function detectWithCoco(imageEl) {
 /**
  * Detect movable items in a photo.
  *
- * @param {HTMLImageElement} imageEl — a loaded <img> (e.g. the on-screen preview)
+ * @param {File | Blob | HTMLImageElement} source — a File/Blob (preferred) is
+ *   decoded directly to a canvas via createImageBitmap, sidestepping any <img>
+ *   element / object-URL lifecycle that can leave an image "broken".
  * @returns {Promise<Array<{ name: string, size: 'small'|'medium'|'large' }>>}
  */
-export async function detectItems(imageEl) {
-  // Make sure the image is decoded before COCO/canvas read from it.
-  if (imageEl && imageEl.complete === false && imageEl.decode) {
-    try {
-      await imageEl.decode()
-    } catch {
-      /* fall through — detect will surface a real failure if it can't read */
-    }
-  }
+export async function detectItems(source) {
+  const canvas = await sourceToCanvas(source)
 
   const apiKey = import.meta.env?.VITE_GEMINI_API_KEY
   if (apiKey) {
     try {
-      return await detectWithGemini(imageEl, apiKey)
+      return await detectWithGemini(canvas, apiKey)
     } catch (err) {
       // Gemini is best-effort; fall back to the in-browser model.
       console.warn('Gemini detection failed; falling back to COCO-SSD:', err)
     }
   }
-  return detectWithCoco(imageEl)
+  return detectWithCoco(canvas)
 }

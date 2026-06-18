@@ -63,16 +63,26 @@ pipeline, unchanged):
 - **COCO-SSD (default, no API key)** — TensorFlow.js runs
   [`@tensorflow-models/coco-ssd`](https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd)
   fully in the browser; it loads lazily on the first detection. **Limitation:** it
-  only knows ~80 common object classes, so it misses many household items.
-- **Gemini vision (optional, broader coverage)** — used automatically when a
-  `VITE_GEMINI_API_KEY` is set in a gitignored `.env.local` (with COCO as the
-  fallback). It's prompted to return JSON only and parsed defensively.
+  recognizes only a **fixed ~80 object classes** (`bottle`, `book`, `chair`, `tv`,
+  `couch`…), so it genuinely *cannot* detect things outside that list — clothing,
+  instruments (no "guitar" class), and most décor. Those it misses you add by
+  hand; detection is a head start, not a complete inventory.
+- **Gemini vision (optional, much broader coverage)** — recognizes essentially
+  any object, so it's the upgrade for real household scanning. Used automatically
+  when a `VITE_GEMINI_API_KEY` is set in a gitignored `.env.local` (with COCO as
+  the fallback). It's asked for JSON only and parsed defensively.
 
   > ⚠️ **API-key limitation:** Vite inlines any `VITE_`-prefixed variable into the
   > client bundle, so the key is **visible on any deployed site**. That's fine for
   > local or personal-demo use, but for a public deploy you should proxy the call
   > through a minimal serverless function so the key stays server-side. The live
   > demo runs the no-key COCO path.
+
+**Image formats:** detection decodes via `createImageBitmap`, so it works with
+JPEG, PNG, and WebP. **HEIC** (the default iPhone photo format) **can't be decoded
+in most browsers** — the app shows a clear message asking for a JPEG/PNG. Set the
+iPhone camera to _Settings → Camera → Formats → Most Compatible_, or export as
+JPEG.
 
 Because detection and the estimator are decoupled this way, the estimation and
 vehicle-lookup logic stays in plain, framework-free modules under `src/lib/` (no
