@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { ITEM_SIZES, estimateBoxes } from './lib/boxes.js'
 import { recommendVehicle } from './lib/vehicles.js'
+import { detectItems } from './lib/detect.js'
 
 const SIZE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large' }
 
@@ -19,6 +20,10 @@ function App() {
   const [items, setItems] = useState([])
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [photo, setPhoto] = useState(null) // { file, url } — session-only preview
+  const [detecting, setDetecting] = useState(false)
+  const [detections, setDetections] = useState(null) // null = not run; [] = none found
+  const [detectError, setDetectError] = useState('')
+  const previewRef = useRef(null)
 
   // Derived estimate — recomputed from the list on every add/remove.
   const estimate = useMemo(() => estimateBoxes(items), [items])
@@ -38,8 +43,30 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
     setPhoto({ file, url: URL.createObjectURL(file) })
+    // A new photo invalidates any previous detection result.
+    setDetections(null)
+    setDetectError('')
     // Reset so picking the same file again still fires onChange.
     event.target.value = ''
+  }
+
+  async function runDetection() {
+    if (!previewRef.current) return
+    setDetecting(true)
+    setDetectError('')
+    try {
+      const found = await detectItems(previewRef.current)
+      setDetections(found)
+      if (found.length === 0) {
+        setDetectError(
+          'No items recognized — try another photo, or add items manually below.',
+        )
+      }
+    } catch {
+      setDetectError('Detection failed. You can still add items manually below.')
+    } finally {
+      setDetecting(false)
+    }
   }
 
   function addItem(event) {
@@ -88,11 +115,40 @@ function App() {
           />
         </label>
         {photo && (
-          <img
-            className="scan__preview"
-            src={photo.url}
-            alt="Selected room photo"
-          />
+          <>
+            <img
+              ref={previewRef}
+              className="scan__preview"
+              src={photo.url}
+              alt="Selected room photo"
+            />
+            <button
+              type="button"
+              className="btn btn--add scan__detect"
+              onClick={runDetection}
+              disabled={detecting}
+            >
+              {detecting ? 'Detecting…' : 'Detect items'}
+            </button>
+            {detectError && <p className="scan__error">{detectError}</p>}
+            {detections && detections.length > 0 && (
+              <div className="detections">
+                <p className="detections__title">
+                  Detected {detections.length}{' '}
+                  {detections.length === 1 ? 'item' : 'items'} — sizes are a
+                  rough guess you&rsquo;ll be able to edit:
+                </p>
+                <ul className="detections__list">
+                  {detections.map((d, i) => (
+                    <li key={`${d.name}-${i}`} className="detections__item">
+                      <span className="detections__name">{d.name}</span>
+                      <span className="tag">{SIZE_LABELS[d.size]}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </section>
 

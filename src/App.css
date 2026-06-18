@@ -89,6 +89,53 @@
   border: 1px solid var(--border);
 }
 
+.scan__detect {
+  margin-top: 14px;
+}
+
+.scan__error {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.detections {
+  margin-top: 14px;
+}
+
+.detections__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.detections__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.detections__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--social-bg);
+}
+
+.detections__name {
+  color: var(--text-h);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Entry form --- */
 .entry__row {
   display: flex;
