@@ -92,13 +92,21 @@ describe('cocoDetectionsToItems', () => {
     ])
   })
 
-  it('drops low-confidence detections below the score threshold', () => {
+  it('drops very-low-confidence detections below the score threshold', () => {
     const detections = [
-      { class: 'book', score: 0.3 },
+      { class: 'book', score: 0.2 },
       { class: 'tv', score: 0.7 },
     ]
     expect(cocoDetectionsToItems(detections)).toEqual([
       { name: 'Tv', size: 'medium' },
+    ])
+  })
+
+  it('keeps moderate-confidence detections (e.g. a 0.4 water bottle)', () => {
+    // Single transparent objects often score 0.3–0.5; favor recall since the
+    // user confirms sizes anyway.
+    expect(cocoDetectionsToItems([{ class: 'bottle', score: 0.4 }])).toEqual([
+      { name: 'Bottle', size: 'small' },
     ])
   })
 

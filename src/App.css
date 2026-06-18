@@ -105,6 +105,12 @@
   color: var(--accent);
 }
 
+.scan__subtle {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
 /* --- Entry form --- */
 .entry__row {
   display: flex;

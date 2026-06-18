@@ -142,6 +142,12 @@ function App() {
             >
               {detecting ? 'Detecting…' : 'Detect items'}
             </button>
+            {detecting && (
+              <p className="scan__subtle">
+                The first scan downloads the detector — this can take a few
+                seconds.
+              </p>
+            )}
             {detectError && <p className="scan__error">{detectError}</p>}
             {detectNotice && <p className="scan__notice">{detectNotice}</p>}
           </>

@@ -22,6 +22,24 @@ export function normalizeSize(size) {
   return SIZES.includes(size) ? size : 'medium'
 }
 
+// Phone photos are ~12 MP. Running detection on the full-resolution image makes
+// COCO-SSD slow and memory-heavy — a cluttered shot can stall (or OOM) the tab —
+// and Gemini doesn't need the extra pixels. Downscale so the longest side is
+// <= this before any inference.
+const MAX_DETECT_DIM = 640
+
+/** Draw an <img> onto a canvas, scaled so its longest side is <= maxDim. */
+function downscaleForDetection(imageEl, maxDim = MAX_DETECT_DIM) {
+  const w = imageEl.naturalWidth || imageEl.width || maxDim
+  const h = imageEl.naturalHeight || imageEl.height || maxDim
+  const scale = Math.min(1, maxDim / Math.max(w, h))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(w * scale))
+  canvas.height = Math.max(1, Math.round(h * scale))
+  canvas.getContext('2d').drawImage(imageEl, 0, 0, canvas.width, canvas.height)
+  return canvas
+}
+
 // ---------------------------------------------------------------------------
 // Gemini backend (primary when a key is present)
 // ---------------------------------------------------------------------------
@@ -59,7 +77,7 @@ export function parseGeminiItems(text) {
 }
 
 async function detectWithGemini(imageEl, apiKey) {
-  const base64 = imageElementToJpegBase64(imageEl)
+  const base64 = canvasToJpegBase64(downscaleForDetection(imageEl))
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
@@ -83,12 +101,8 @@ async function detectWithGemini(imageEl, apiKey) {
   return parseGeminiItems(text)
 }
 
-/** Draw an <img> to a canvas and return raw base64 JPEG (no data-URL prefix). */
-function imageElementToJpegBase64(imageEl) {
-  const canvas = document.createElement('canvas')
-  canvas.width = imageEl.naturalWidth
-  canvas.height = imageEl.naturalHeight
-  canvas.getContext('2d').drawImage(imageEl, 0, 0)
+/** Canvas → raw base64 JPEG (no data-URL prefix), for Gemini's inline_data. */
+function canvasToJpegBase64(canvas) {
   return canvas.toDataURL('image/jpeg', 0.9).split(',')[1]
 }
 
@@ -157,6 +171,11 @@ const COCO_EXCLUDE = new Set([
   'giraffe',
 ])
 
+// Confidence floor for COCO detections. Lower than COCO's 0.5 default to favor
+// recall — e.g. a transparent water bottle at ~0.4 — since the user confirms
+// every size anyway.
+const MIN_SCORE = 0.35
+
 /** Map a COCO class label to a coarse size; unmapped → 'medium'. */
 export function cocoClassToSize(className) {
   return COCO_SIZE[className] ?? 'medium'
@@ -166,7 +185,7 @@ export function cocoClassToSize(className) {
  * Turn raw COCO-SSD detections (`[{ class, score, bbox }]`) into estimator
  * items. Drops low-confidence hits and excludes living things.
  */
-export function cocoDetectionsToItems(detections, { minScore = 0.5 } = {}) {
+export function cocoDetectionsToItems(detections, { minScore = MIN_SCORE } = {}) {
   if (!Array.isArray(detections)) return []
   return detections
     .filter(
@@ -195,7 +214,10 @@ async function detectWithCoco(imageEl) {
     })()
   }
   const model = await cocoModelPromise
-  const detections = await model.detect(imageEl)
+  // Detect on a downscaled canvas; allow more boxes for cluttered scenes and pass
+  // the lower score floor so marginal objects still surface.
+  const source = downscaleForDetection(imageEl)
+  const detections = await model.detect(source, 30, MIN_SCORE)
   return cocoDetectionsToItems(detections)
 }
 
