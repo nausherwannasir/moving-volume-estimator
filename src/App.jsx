@@ -3,6 +3,7 @@ import './App.css'
 import { ITEM_SIZES, estimateBoxes } from './lib/boxes.js'
 import { recommendVehicle } from './lib/vehicles.js'
 import { detectItems } from './lib/detect.js'
+import { detectionsToItems } from './lib/items.js'
 
 const SIZE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large' }
 
@@ -21,8 +22,8 @@ function App() {
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [photo, setPhoto] = useState(null) // { file, url } — session-only preview
   const [detecting, setDetecting] = useState(false)
-  const [detections, setDetections] = useState(null) // null = not run; [] = none found
   const [detectError, setDetectError] = useState('')
+  const [detectNotice, setDetectNotice] = useState('')
   const previewRef = useRef(null)
 
   // Derived estimate — recomputed from the list on every add/remove.
@@ -43,9 +44,9 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
     setPhoto({ file, url: URL.createObjectURL(file) })
-    // A new photo invalidates any previous detection result.
-    setDetections(null)
+    // A new photo invalidates any previous detection messaging.
     setDetectError('')
+    setDetectNotice('')
     // Reset so picking the same file again still fires onChange.
     event.target.value = ''
   }
@@ -54,12 +55,23 @@ function App() {
     if (!previewRef.current) return
     setDetecting(true)
     setDetectError('')
+    setDetectNotice('')
     try {
       const found = await detectItems(previewRef.current)
-      setDetections(found)
-      if (found.length === 0) {
+      const detected = detectionsToItems(found).map((item) => ({
+        id: nextId++,
+        ...item,
+      }))
+      if (detected.length === 0) {
         setDetectError(
           'No items recognized — try another photo, or add items manually below.',
+        )
+      } else {
+        // Auto-fill the shared list: detected items are now editable/removable
+        // exactly like manual ones and drive the live estimate.
+        setItems((prev) => [...prev, ...detected])
+        setDetectNotice(
+          `Added ${detected.length} ${detected.length === 1 ? 'item' : 'items'} to your list — review and edit sizes below.`,
         )
       }
     } catch {
@@ -131,23 +143,7 @@ function App() {
               {detecting ? 'Detecting…' : 'Detect items'}
             </button>
             {detectError && <p className="scan__error">{detectError}</p>}
-            {detections && detections.length > 0 && (
-              <div className="detections">
-                <p className="detections__title">
-                  Detected {detections.length}{' '}
-                  {detections.length === 1 ? 'item' : 'items'} — sizes are a
-                  rough guess you&rsquo;ll be able to edit:
-                </p>
-                <ul className="detections__list">
-                  {detections.map((d, i) => (
-                    <li key={`${d.name}-${i}`} className="detections__item">
-                      <span className="detections__name">{d.name}</span>
-                      <span className="tag">{SIZE_LABELS[d.size]}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {detectNotice && <p className="scan__notice">{detectNotice}</p>}
           </>
         )}
       </section>
