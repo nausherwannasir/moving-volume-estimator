@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ITEM_SIZES, estimateBoxes } from './lib/boxes.js'
 import { recommendVehicle } from './lib/vehicles.js'
@@ -18,6 +18,7 @@ const EMPTY_DRAFT = { name: '', size: 'medium', quantity: 1, fragile: false }
 function App() {
   const [items, setItems] = useState([])
   const [draft, setDraft] = useState(EMPTY_DRAFT)
+  const [photo, setPhoto] = useState(null) // { file, url } — session-only preview
 
   // Derived estimate — recomputed from the list on every add/remove.
   const estimate = useMemo(() => estimateBoxes(items), [items])
@@ -25,6 +26,21 @@ function App() {
     () => recommendVehicle(estimate.totalCubicFeet),
     [estimate.totalCubicFeet],
   )
+
+  // Release the object URL when the photo is replaced or the app unmounts.
+  useEffect(() => {
+    return () => {
+      if (photo) URL.revokeObjectURL(photo.url)
+    }
+  }, [photo])
+
+  function onPhotoChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setPhoto({ file, url: URL.createObjectURL(file) })
+    // Reset so picking the same file again still fires onChange.
+    event.target.value = ''
+  }
 
   function addItem(event) {
     event.preventDefault()
@@ -54,6 +70,31 @@ function App() {
           vehicle to fit it all.
         </p>
       </header>
+
+      <section className="scan" aria-label="Add items from a photo">
+        <h2>Scan a photo</h2>
+        <p className="scan__hint">
+          Take or upload a photo of a room — we&rsquo;ll suggest items and sizes
+          you can edit before estimating.
+        </p>
+        <label className="btn btn--photo">
+          {photo ? 'Choose a different photo' : '📷 Take or upload a photo'}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="scan__input"
+            onChange={onPhotoChange}
+          />
+        </label>
+        {photo && (
+          <img
+            className="scan__preview"
+            src={photo.url}
+            alt="Selected room photo"
+          />
+        )}
+      </section>
 
       <form className="entry" onSubmit={addItem}>
         <div className="entry__row">
